@@ -1,0 +1,41 @@
+server:
+  port: ${SERVER_PORT:8082}
+  shutdown: graceful
+
+spring:
+  application:
+    name: sync-service
+  datasource:
+    url: ${READ_DATABASE_URL:jdbc:postgresql://localhost:5432/read_db}
+    username: ${READ_DATABASE_USERNAME:cqrs}
+    password: ${READ_DATABASE_PASSWORD:cqrs}
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+  kafka:
+    bootstrap-servers: ${KAFKA_BROKERS:localhost:9092}
+    consumer:
+      group-id: ${KAFKA_GROUP_ID:cqrs-sync-group}
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: com.eloka.cqrs.common.*
+        spring.json.value.default.type: com.eloka.cqrs.common.events.ProductEvent
+        spring.json.use.type.headers: false
+    listener:
+      missing-topics-fatal: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+cqrs:
+  kafka:
+    topic: ${KAFKA_TOPIC:product-events}

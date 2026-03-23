@@ -1,0 +1,91 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: sync-service
+  namespace: cqrs-tp
+spec:
+  selector:
+    app: sync-service
+  ports:
+    - name: http
+      port: 8082
+      targetPort: 8082
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sync-service
+  namespace: cqrs-tp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sync-service
+  template:
+    metadata:
+      labels:
+        app: sync-service
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: nodemaster
+      tolerations:
+        - key: node-role.kubernetes.io/control-plane
+          operator: Exists
+          effect: NoSchedule
+        - key: node-role.kubernetes.io/master
+          operator: Exists
+          effect: NoSchedule
+      initContainers:
+        - name: wait-read-db
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - until nc -z read-postgres 5432; do echo waiting for read-postgres; sleep 3; done
+        - name: wait-kafka
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - until nc -z kafka-bootstrap 9092; do echo waiting for kafka; sleep 3; done
+      containers:
+        - name: sync-service
+          image: cqrs-spring:latest
+          imagePullPolicy: Never
+          env:
+            - name: APP_NAME
+              value: sync-service
+            - name: JAVA_OPTS
+              value: "-XX:MaxRAMPercentage=75.0"
+            - name: SERVER_PORT
+              value: "8082"
+            - name: READ_DATABASE_URL
+              value: jdbc:postgresql://read-postgres:5432/read_db
+            - name: READ_DATABASE_USERNAME
+              value: cqrs
+            - name: READ_DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: cqrs-secrets
+                  key: postgres-password
+            - name: KAFKA_BROKERS
+              value: kafka-bootstrap:9092
+            - name: KAFKA_TOPIC
+              value: product-events
+            - name: KAFKA_GROUP_ID
+              value: cqrs-sync-group
+          ports:
+            - containerPort: 8082
+              name: http
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            initialDelaySeconds: 45
+            periodSeconds: 20

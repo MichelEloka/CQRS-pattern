@@ -1,0 +1,38 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: read-db-init
+  namespace: cqrs-tp
+data:
+  01-init.sql: |
+    CREATE TABLE IF NOT EXISTS product_projection (
+        id UUID PRIMARY KEY,
+        name TEXT NOT NULL,
+        description TEXT NOT NULL DEFAULT '',
+        price NUMERIC(10,2) NOT NULL CHECK (price >= 0),
+        stock INTEGER NOT NULL CHECK (stock >= 0),
+        status TEXT NOT NULL CHECK (status IN ('AVAILABLE', 'LIMITED', 'DISCONTINUED')),
+        created_at TIMESTAMPTZ NOT NULL,
+        updated_at TIMESTAMPTZ NOT NULL,
+        synced_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+
+    CREATE OR REPLACE VIEW product_catalog_view AS
+    SELECT
+        id,
+        name,
+        description,
+        price,
+        stock,
+        status,
+        CASE
+            WHEN status = 'DISCONTINUED' THEN 'discontinued'
+            WHEN stock = 0 THEN 'out-of-stock'
+            WHEN stock < 5 THEN 'low-stock'
+            ELSE 'in-stock'
+        END AS availability,
+        created_at,
+        updated_at,
+        synced_at
+    FROM product_projection;
+

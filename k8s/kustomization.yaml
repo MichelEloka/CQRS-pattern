@@ -1,0 +1,12 @@
+resources:
+  - namespace.yaml
+  - secret.yaml
+  - write-db-init-configmap.yaml
+  - read-db-init-configmap.yaml
+  - write-postgres.yaml
+  - read-postgres.yaml
+  - kafka.yaml
+  - write-api.yaml
+  - read-api.yaml
+  - sync-service.yaml
+

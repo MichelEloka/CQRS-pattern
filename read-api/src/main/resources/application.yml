@@ -1,0 +1,24 @@
+server:
+  port: ${SERVER_PORT:8081}
+  shutdown: graceful
+
+spring:
+  application:
+    name: read-api
+  datasource:
+    url: ${READ_DATABASE_URL:jdbc:postgresql://localhost:5432/read_db}
+    username: ${READ_DATABASE_USERNAME:cqrs}
+    password: ${READ_DATABASE_PASSWORD:cqrs}
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
