@@ -8,6 +8,7 @@ import java.util.UUID;
 
 public record ProductViewResponse(
         UUID id,
+        String region,
         String name,
         String description,
         BigDecimal price,
@@ -19,4 +20,3 @@ public record ProductViewResponse(
         OffsetDateTime syncedAt
 ) {
 }
-

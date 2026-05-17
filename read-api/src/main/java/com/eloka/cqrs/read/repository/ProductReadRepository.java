@@ -1,7 +1,9 @@
 package com.eloka.cqrs.read.repository;
 
+import com.eloka.cqrs.common.domain.DeploymentRegion;
 import com.eloka.cqrs.common.domain.ProductStatus;
 import com.eloka.cqrs.read.dto.ProductViewResponse;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -17,6 +19,7 @@ public class ProductReadRepository {
 
     private static final RowMapper<ProductViewResponse> PRODUCT_VIEW_ROW_MAPPER = (rs, rowNum) -> new ProductViewResponse(
             rs.getObject("id", UUID.class),
+            rs.getString("region"),
             rs.getString("name"),
             rs.getString("description"),
             rs.getBigDecimal("price"),
@@ -29,14 +32,17 @@ public class ProductReadRepository {
     );
 
     private final NamedParameterJdbcTemplate jdbcTemplate;
+    private final DeploymentRegion deploymentRegion;
 
-    public ProductReadRepository(NamedParameterJdbcTemplate jdbcTemplate) {
+    public ProductReadRepository(NamedParameterJdbcTemplate jdbcTemplate, @Value("${cqrs.region}") String regionCode) {
         this.jdbcTemplate = jdbcTemplate;
+        this.deploymentRegion = DeploymentRegion.fromCode(regionCode);
     }
 
     public List<ProductViewResponse> findAll() {
         return jdbcTemplate.query("""
                 SELECT id,
+                       region,
                        name,
                        description,
                        price,
@@ -47,13 +53,15 @@ public class ProductReadRepository {
                        updated_at,
                        synced_at
                 FROM product_catalog_view
+                WHERE region = :region
                 ORDER BY updated_at DESC
-                """, PRODUCT_VIEW_ROW_MAPPER);
+                """, new MapSqlParameterSource("region", deploymentRegion.code()), PRODUCT_VIEW_ROW_MAPPER);
     }
 
     public Optional<ProductViewResponse> findById(UUID productId) {
         return jdbcTemplate.query("""
                 SELECT id,
+                       region,
                        name,
                        description,
                        price,
@@ -65,7 +73,9 @@ public class ProductReadRepository {
                        synced_at
                 FROM product_catalog_view
                 WHERE id = :id
-                """, new MapSqlParameterSource("id", productId), PRODUCT_VIEW_ROW_MAPPER).stream().findFirst();
+                  AND region = :region
+                """, new MapSqlParameterSource()
+                .addValue("id", productId)
+                .addValue("region", deploymentRegion.code()), PRODUCT_VIEW_ROW_MAPPER).stream().findFirst();
     }
 }
-

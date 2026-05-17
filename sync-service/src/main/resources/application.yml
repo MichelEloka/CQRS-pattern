@@ -35,7 +35,16 @@ management:
     health:
       probes:
         enabled: true
+  info:
+    env:
+      enabled: true
+
+info:
+  role: sync-service
+  region: ${CQRS_REGION:eu-west}
 
 cqrs:
+  region: ${CQRS_REGION:eu-west}
   kafka:
     topic: ${KAFKA_TOPIC:product-events}
+    partition: ${CQRS_KAFKA_PARTITION:0}

@@ -7,6 +7,7 @@ data:
   01-init.sql: |
     CREATE TABLE IF NOT EXISTS products (
         id UUID PRIMARY KEY,
+        region TEXT NOT NULL,
         name TEXT NOT NULL,
         description TEXT NOT NULL DEFAULT '',
         price NUMERIC(10,2) NOT NULL CHECK (price >= 0),
@@ -29,4 +30,3 @@ data:
     BEFORE UPDATE ON products
     FOR EACH ROW
     EXECUTE FUNCTION set_updated_at();
-

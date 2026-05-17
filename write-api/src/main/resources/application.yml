@@ -31,7 +31,15 @@ management:
     health:
       probes:
         enabled: true
+  info:
+    env:
+      enabled: true
+
+info:
+  role: write-api
+  region: ${CQRS_REGION:eu-west}
 
 cqrs:
+  region: ${CQRS_REGION:eu-west}
   kafka:
     topic: ${KAFKA_TOPIC:product-events}

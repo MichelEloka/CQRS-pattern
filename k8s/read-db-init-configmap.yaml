@@ -7,6 +7,7 @@ data:
   01-init.sql: |
     CREATE TABLE IF NOT EXISTS product_projection (
         id UUID PRIMARY KEY,
+        region TEXT NOT NULL,
         name TEXT NOT NULL,
         description TEXT NOT NULL DEFAULT '',
         price NUMERIC(10,2) NOT NULL CHECK (price >= 0),
@@ -20,6 +21,7 @@ data:
     CREATE OR REPLACE VIEW product_catalog_view AS
     SELECT
         id,
+        region,
         name,
         description,
         price,
@@ -35,4 +37,3 @@ data:
         updated_at,
         synced_at
     FROM product_projection;
-

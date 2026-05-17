@@ -1,0 +1,128 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: cqrs-runtime
+  namespace: cqrs-tp
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: cqrs-runtime-node-reader
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - nodes
+    verbs:
+      - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: cqrs-runtime-node-reader
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cqrs-runtime-node-reader
+subjects:
+  - kind: ServiceAccount
+    name: cqrs-runtime
+    namespace: cqrs-tp
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: cqrs-runtime-pod-manager
+  namespace: cqrs-tp
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - pods
+    verbs:
+      - get
+      - list
+      - watch
+      - patch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: cqrs-runtime-pod-manager
+  namespace: cqrs-tp
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: cqrs-runtime-pod-manager
+subjects:
+  - kind: ServiceAccount
+    name: cqrs-runtime
+    namespace: cqrs-tp
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cqrs-runtime-scripts
+  namespace: cqrs-tp
+data:
+  resolve-region.sh: |
+    #!/bin/sh
+    set -eu
+
+    : "${APP_ROLE:?APP_ROLE is required}"
+    : "${NODE_NAME:?NODE_NAME is required}"
+    : "${POD_NAME:?POD_NAME is required}"
+    : "${POD_NAMESPACE:?POD_NAMESPACE is required}"
+
+    REGION="$(kubectl get node "$NODE_NAME" -o jsonpath='{.metadata.labels.demo\.cqrs/region}')"
+    if [ -z "$REGION" ]; then
+      echo "Node $NODE_NAME does not have label demo.cqrs/region" >&2
+      exit 1
+    fi
+
+    case "$REGION" in
+      eu-west)
+        PARTITION=0
+        ;;
+      us-east)
+        PARTITION=1
+        ;;
+      ap-south)
+        PARTITION=2
+        ;;
+      *)
+        echo "Unsupported CQRS region label on node $NODE_NAME: $REGION" >&2
+        exit 1
+        ;;
+    esac
+
+    kubectl patch pod "$POD_NAME" -n "$POD_NAMESPACE" --type=merge \
+      -p "{\"metadata\":{\"labels\":{\"demo.cqrs/region\":\"$REGION\"}}}"
+
+    cat > /cqrs-runtime/env <<EOF
+    export CQRS_REGION=$REGION
+    export CQRS_KAFKA_PARTITION=$PARTITION
+    export KAFKA_GROUP_ID=cqrs-sync-$REGION
+    export WRITE_DATABASE_URL=jdbc:postgresql://write-postgres-$REGION:5432/write_db
+    export READ_DATABASE_URL=jdbc:postgresql://read-postgres-$REGION:5432/read_db
+    EOF
+
+    case "$APP_ROLE" in
+      write-api)
+        kubectl wait pod -n "$POD_NAMESPACE" -l "app=write-postgres,demo.cqrs/region=$REGION" --for=condition=Ready --timeout=240s
+        kubectl wait pod -n "$POD_NAMESPACE" -l "app=kafka" --for=condition=Ready --timeout=420s
+        ;;
+      read-api)
+        kubectl wait pod -n "$POD_NAMESPACE" -l "app=read-postgres,demo.cqrs/region=$REGION" --for=condition=Ready --timeout=240s
+        ;;
+      sync-service)
+        kubectl wait pod -n "$POD_NAMESPACE" -l "app=read-postgres,demo.cqrs/region=$REGION" --for=condition=Ready --timeout=240s
+        kubectl wait pod -n "$POD_NAMESPACE" -l "app=kafka" --for=condition=Ready --timeout=420s
+        ;;
+      *)
+        echo "Unsupported APP_ROLE: $APP_ROLE" >&2
+        exit 1
+        ;;
+    esac
+
+    echo "$APP_ROLE on $POD_NAME resolved node $NODE_NAME to region $REGION and partition $PARTITION"

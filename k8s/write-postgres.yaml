@@ -1,11 +1,12 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: write-postgres
+  name: write-postgres-eu-west
   namespace: cqrs-tp
 spec:
   selector:
     app: write-postgres
+    demo.cqrs/region: eu-west
   ports:
     - name: postgres
       port: 5432
@@ -14,19 +15,30 @@ spec:
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: write-postgres
+  name: write-postgres-eu-west
   namespace: cqrs-tp
 spec:
-  serviceName: write-postgres
+  serviceName: write-postgres-eu-west
   replicas: 1
   selector:
     matchLabels:
       app: write-postgres
+      demo.cqrs/region: eu-west
   template:
     metadata:
       labels:
         app: write-postgres
+        demo.cqrs/region: eu-west
     spec:
+      nodeSelector:
+        demo.cqrs/region: eu-west
+      tolerations:
+        - key: node-role.kubernetes.io/control-plane
+          operator: Exists
+          effect: NoSchedule
+        - key: node-role.kubernetes.io/master
+          operator: Exists
+          effect: NoSchedule
       containers:
         - name: postgres
           image: postgres:16-alpine
@@ -78,4 +90,175 @@ spec:
         resources:
           requests:
             storage: 2Gi
-
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: write-postgres-us-east
+  namespace: cqrs-tp
+spec:
+  selector:
+    app: write-postgres
+    demo.cqrs/region: us-east
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: 5432
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: write-postgres-us-east
+  namespace: cqrs-tp
+spec:
+  serviceName: write-postgres-us-east
+  replicas: 1
+  selector:
+    matchLabels:
+      app: write-postgres
+      demo.cqrs/region: us-east
+  template:
+    metadata:
+      labels:
+        app: write-postgres
+        demo.cqrs/region: us-east
+    spec:
+      nodeSelector:
+        demo.cqrs/region: us-east
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports:
+            - containerPort: 5432
+              name: postgres
+          env:
+            - name: POSTGRES_DB
+              value: write_db
+            - name: POSTGRES_USER
+              value: cqrs
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: cqrs-secrets
+                  key: postgres-password
+          livenessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - pg_isready -U cqrs -d write_db
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          readinessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - pg_isready -U cqrs -d write_db
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+            - name: init-sql
+              mountPath: /docker-entrypoint-initdb.d/01-init.sql
+              subPath: 01-init.sql
+      volumes:
+        - name: init-sql
+          configMap:
+            name: write-db-init
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 2Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: write-postgres-ap-south
+  namespace: cqrs-tp
+spec:
+  selector:
+    app: write-postgres
+    demo.cqrs/region: ap-south
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: 5432
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: write-postgres-ap-south
+  namespace: cqrs-tp
+spec:
+  serviceName: write-postgres-ap-south
+  replicas: 1
+  selector:
+    matchLabels:
+      app: write-postgres
+      demo.cqrs/region: ap-south
+  template:
+    metadata:
+      labels:
+        app: write-postgres
+        demo.cqrs/region: ap-south
+    spec:
+      nodeSelector:
+        demo.cqrs/region: ap-south
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports:
+            - containerPort: 5432
+              name: postgres
+          env:
+            - name: POSTGRES_DB
+              value: write_db
+            - name: POSTGRES_USER
+              value: cqrs
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: cqrs-secrets
+                  key: postgres-password
+          livenessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - pg_isready -U cqrs -d write_db
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          readinessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - pg_isready -U cqrs -d write_db
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+            - name: init-sql
+              mountPath: /docker-entrypoint-initdb.d/01-init.sql
+              subPath: 01-init.sql
+      volumes:
+        - name: init-sql
+          configMap:
+            name: write-db-init
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 2Gi

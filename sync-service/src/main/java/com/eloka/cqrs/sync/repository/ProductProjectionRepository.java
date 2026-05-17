@@ -17,6 +17,7 @@ public class ProductProjectionRepository {
     public void upsert(ProductSnapshot snapshot) {
         MapSqlParameterSource parameters = new MapSqlParameterSource()
                 .addValue("id", snapshot.id())
+                .addValue("region", snapshot.region())
                 .addValue("name", snapshot.name())
                 .addValue("description", snapshot.description())
                 .addValue("price", snapshot.price())
@@ -28,6 +29,7 @@ public class ProductProjectionRepository {
         jdbcTemplate.update("""
                 INSERT INTO product_projection (
                     id,
+                    region,
                     name,
                     description,
                     price,
@@ -39,6 +41,7 @@ public class ProductProjectionRepository {
                 )
                 VALUES (
                     :id,
+                    :region,
                     :name,
                     :description,
                     :price,
@@ -49,7 +52,8 @@ public class ProductProjectionRepository {
                     NOW()
                 )
                 ON CONFLICT (id) DO UPDATE
-                SET name = EXCLUDED.name,
+                SET region = EXCLUDED.region,
+                    name = EXCLUDED.name,
                     description = EXCLUDED.description,
                     price = EXCLUDED.price,
                     stock = EXCLUDED.stock,
@@ -61,4 +65,3 @@ public class ProductProjectionRepository {
                 """, parameters);
     }
 }
-

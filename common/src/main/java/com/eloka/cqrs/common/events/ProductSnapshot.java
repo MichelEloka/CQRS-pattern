@@ -8,6 +8,7 @@ import java.util.UUID;
 
 public record ProductSnapshot(
         UUID id,
+        String region,
         String name,
         String description,
         BigDecimal price,
@@ -17,4 +18,3 @@ public record ProductSnapshot(
         OffsetDateTime updatedAt
 ) {
 }
-

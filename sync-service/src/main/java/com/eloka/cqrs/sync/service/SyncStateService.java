@@ -18,6 +18,7 @@ public class SyncStateService {
                 "eventId", event.eventId(),
                 "eventType", event.eventType(),
                 "productId", event.product().id(),
+                "region", event.product().region(),
                 "partition", partition,
                 "offset", offset,
                 "emittedAt", event.emittedAt()
@@ -32,4 +33,3 @@ public class SyncStateService {
         return lastEvent;
     }
 }
-

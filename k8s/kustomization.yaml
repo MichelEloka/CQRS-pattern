@@ -1,6 +1,7 @@
 resources:
   - namespace.yaml
   - secret.yaml
+  - runtime-rbac.yaml
   - write-db-init-configmap.yaml
   - read-db-init-configmap.yaml
   - write-postgres.yaml
@@ -9,4 +10,3 @@ resources:
   - write-api.yaml
   - read-api.yaml
   - sync-service.yaml
-

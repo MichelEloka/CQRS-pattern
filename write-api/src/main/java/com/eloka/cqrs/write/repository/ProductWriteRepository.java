@@ -22,6 +22,7 @@ public class ProductWriteRepository {
 
     private static final RowMapper<ProductSnapshot> PRODUCT_ROW_MAPPER = (rs, rowNum) -> new ProductSnapshot(
             rs.getObject("id", UUID.class),
+            rs.getString("region"),
             rs.getString("name"),
             rs.getString("description"),
             rs.getBigDecimal("price"),
@@ -37,8 +38,9 @@ public class ProductWriteRepository {
         this.jdbcTemplate = jdbcTemplate;
     }
 
-    public ProductSnapshot insert(UUID productId, UpsertProductRequest request) {
+    public ProductSnapshot insert(UUID productId, String region, UpsertProductRequest request) {
         MapSqlParameterSource parameters = baseParameters(productId)
+                .addValue("region", region)
                 .addValue("name", normalizeRequiredText(request.name(), "name"))
                 .addValue("description", normalizeOptionalText(request.description()))
                 .addValue("price", normalizePrice(request.price()))
@@ -46,14 +48,15 @@ public class ProductWriteRepository {
                 .addValue("status", ProductStatus.fromNullable(request.status()).name());
 
         return jdbcTemplate.queryForObject("""
-                INSERT INTO products (id, name, description, price, stock, status)
-                VALUES (:id, :name, :description, :price, :stock, :status)
-                RETURNING id, name, description, price, stock, status, created_at, updated_at
+                INSERT INTO products (id, region, name, description, price, stock, status)
+                VALUES (:id, :region, :name, :description, :price, :stock, :status)
+                RETURNING id, region, name, description, price, stock, status, created_at, updated_at
                 """, parameters, PRODUCT_ROW_MAPPER);
     }
 
-    public Optional<ProductSnapshot> replace(UUID productId, UpsertProductRequest request) {
+    public Optional<ProductSnapshot> replace(UUID productId, String region, UpsertProductRequest request) {
         MapSqlParameterSource parameters = baseParameters(productId)
+                .addValue("region", region)
                 .addValue("name", normalizeRequiredText(request.name(), "name"))
                 .addValue("description", normalizeOptionalText(request.description()))
                 .addValue("price", normalizePrice(request.price()))
@@ -68,12 +71,13 @@ public class ProductWriteRepository {
                     stock = :stock,
                     status = :status
                 WHERE id = :id
-                RETURNING id, name, description, price, stock, status, created_at, updated_at
+                  AND region = :region
+                RETURNING id, region, name, description, price, stock, status, created_at, updated_at
                 """, parameters, PRODUCT_ROW_MAPPER).stream().findFirst();
     }
 
-    public Optional<ProductSnapshot> patch(UUID productId, PatchProductRequest request) {
-        MapSqlParameterSource parameters = baseParameters(productId);
+    public Optional<ProductSnapshot> patch(UUID productId, String region, PatchProductRequest request) {
+        MapSqlParameterSource parameters = baseParameters(productId).addValue("region", region);
         List<String> assignments = new ArrayList<>();
 
         if (request.name() != null) {
@@ -109,7 +113,8 @@ public class ProductWriteRepository {
                 UPDATE products
                 SET %s
                 WHERE id = :id
-                RETURNING id, name, description, price, stock, status, created_at, updated_at
+                  AND region = :region
+                RETURNING id, region, name, description, price, stock, status, created_at, updated_at
                 """.formatted(String.join(", ", assignments));
 
         return jdbcTemplate.query(sql, parameters, PRODUCT_ROW_MAPPER).stream().findFirst();
@@ -139,4 +144,3 @@ public class ProductWriteRepository {
         return value.setScale(2, RoundingMode.HALF_UP);
     }
 }
-
